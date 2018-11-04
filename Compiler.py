@@ -272,7 +272,7 @@ class Parser(object):
         return self.token_list
     
 #get file name from user
-file = input().strip('\n')
+file = input("Enter file name: ").strip('\n')
 try: 
     text = open(file).read()
     print('Token sequence:')
