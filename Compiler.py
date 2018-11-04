@@ -29,7 +29,7 @@ RESERVED_KEYWORDS = {
 
 #This class responsible for reading characters in and try to match with lexemes
 #if match, convert into Token
-class Lexer(object):
+class Scanner(object):
     def __init__(self,text):
         self.text = text
         self.pos = 0
@@ -104,9 +104,9 @@ class Lexer(object):
 #If the tokens match with syntax, it gets next token
 #If the token doesn't match with syntax, it calls self.error >> invalid syntax
 class Parser(object):
-    def __init__(self,lexer,token_list):
-        self.lexer = lexer
-        self.current_token = self.lexer.get_next_token()
+    def __init__(self,scanner,token_list):
+        self.scanner = scanner
+        self.current_token = self.scanner.get_next_token()
         self.token_list = token_list
 
     def error(self):
@@ -115,7 +115,7 @@ class Parser(object):
     def match(self, token_type): #match current token with the expected token
         if self.current_token.type == token_type:
             print(self.current_token)
-            self.current_token = self.lexer.get_next_token()
+            self.current_token = self.scanner.get_next_token()
         else:
             self.error() #if not matched, raise an error
         return
@@ -294,8 +294,8 @@ elif x == 1: #get source program from typing in command line
 else: print("invalid input mode")
 print('Token sequence:')
 token_list = [] #list for storing tokens
-lexer = Lexer(text.strip('\n\t\r')) 
-parser = Parser(lexer,token_list)
+scanner = Scanner(text.strip('\n\t\r')) 
+parser = Parser(scanner,token_list)
 token_list = parser.parse()
 token_list.append('0') #indicating end of B_code
 
