@@ -1,17 +1,13 @@
 from collections import OrderedDict
 import string
 
-LINE,ID,CONST,IF,GOTO = "#line","#id","#const","#if","#goto"
-PRINT,STOP = "#print","#stop"
-PLUS = MINUS = LESS = EQUAL = "#op"
-EOF = '#EOF'
-
+#B_code type
 tag = {'#line':'10','#id':'11','#const':'12','#if':'13','#goto':'14','#print':'15',
        '#stop':'16','#op':'17'}
 
-upper = string.ascii_uppercase
-const_range = [str(e) for e in range(0,101)]
-num_range = [str(e) for e in range(1,1001)]
+upper = string.ascii_uppercase  #upper is A..Z
+const_range = [str(e) for e in range(0,101)] # const_range is range of CONST [0...100]
+num_range = [str(e) for e in range(1,1001)]  # num_range is range of 'line_num [1...1000]
 
 #Token class for storing type and value of the token
 class Token(object):
@@ -25,11 +21,14 @@ class Token(object):
     def __repr__(self):
         return self.__str__()
 
+#Dictionery containing Tokens of IF,GOTO,PRINT,STOP
 RESERVED_KEYWORDS = {
-    'IF': Token(IF, '0'),'GOTO': Token(GOTO, '0'),
-    'PRINT': Token(PRINT, '0'),'STOP': Token(STOP, '0')
+    'IF': Token('#if', '0'),'GOTO': Token('#goto', '0'),
+    'PRINT': Token('#print', '0'),'STOP': Token('#stop', '0')
 }
 
+#This class responsible for reading characters in and try to match with lexemes
+#if match, convert into Token
 class Lexer(object):
     def __init__(self,text):
         self.text = text
@@ -39,72 +38,71 @@ class Lexer(object):
     def error(self):
         raise Exception('Invalid character')
 
-    def advance(self):
+    def advance(self): 
         self.pos += 1
         if self.pos > len(self.text) - 1:
-            self.current_char = None
+            self.current_char = None #End of file
         else:
-            self.current_char = self.text[self.pos]
+            self.current_char = self.text[self.pos] #if not EOF, get next character
 
-    def skip_whitespace(self):
+    def skip_whitespace(self): 
         while self.current_char is not None and self.current_char.isspace():
             self.advance()
 
-    def number(self):
+    def number(self): #return Token of number 
+                      #(Consider all number to be const at this point)
         result = ''
-        while self.current_char is not None and self.current_char.isdigit()\
-              and int(self.current_char) <= 1000:
+        while self.current_char is not None and self.current_char.isdigit():
             result += self.current_char
             self.advance()
         token = Token('#const', result)
         return token
 
-    def ident(self):
+    def ident(self): #return Token of ID or IF,PRINT,GOTO,STOP
         result = ''
         while self.current_char is not None and self.current_char in upper\
               and result not in RESERVED_KEYWORDS:
             result += self.current_char
             self.advance()
-        token = RESERVED_KEYWORDS.get(result.upper(), Token(ID,result))
+        token = RESERVED_KEYWORDS.get(result.upper(), Token('#id',result))
         return token
 
-    def get_next_token(self):
+    def get_next_token(self): #call by parser to get next token
+        
         while self.current_char is not None:
-            #if next input_char is whitespace
-            if self.current_char.isspace():
+            
+            if self.current_char.isspace(): #if next input_char is whitespace
                 self.skip_whitespace()
 
-            #if next input_char is ID
-            if self.current_char in upper:
+            if self.current_char in upper:  #if next input_char is alphabet
                 return self.ident()
 
-            #if next input_char is number
-            if self.current_char.isdigit():
+            if self.current_char.isdigit(): #if next input_char is number
                 return self.number()
             
-            #if next input_char is plus sign
-            if self.current_char == '+':
+            if self.current_char == '+':    #if next input_char is plus sign
                 self.advance()
-                return Token(PLUS, '1')
+                return Token('#op', '1')
 
-            #if next input_char is minus sign
-            if self.current_char == '-':
+            if self.current_char == '-':    #if next input_char is minus sign
                 self.advance()
-                return Token(MINUS, '2')
+                return Token('#op', '2')
 
-            #if next input_char is less than
-            if self.current_char == '<':
+            if self.current_char == '<':    #if next input_char is less than
                 self.advance()
-                return Token(LESS, '3')
-
-            #if next input_char is equal sign
-            if self.current_char == '=':
+                return Token('#op', '3')
+            
+            if self.current_char == '=':    #if next input_char is equal sign
                 self.advance()
-                return Token(EQUAL, '4')
+                return Token('#op', '4')
 
-            self.error()
-        return Token(EOF, None)
+            self.error() #if char is not match any case then Invalid character entered
+            
+        return Token('#EOF', None) #self.current_char = None (No more characters) return EOF Token
 
+#This class responsible for matching the tokens with syntax
+#If the tokens match with syntax, it gets next token
+#If the token doesn't match with syntax, it calls self.error >> invalid syntax
 class Parser(object):
     def __init__(self,lexer,token_list):
         self.lexer = lexer
@@ -114,19 +112,19 @@ class Parser(object):
     def error(self):
         raise Exception('Invalid syntax')
 
-    def eat(self, token_type):
+    def eat(self, token_type): #match current token with the expected token
         if self.current_token.type == token_type:
             print(self.current_token)
             self.current_token = self.lexer.get_next_token()
         else:
-            self.error()
+            self.error() #if not matched, raise an error
         return
 
-    def pgm(self):
-        """pgm := line pgm | EOF"""
-        if self.current_token.type == EOF:
+    #Using recursive descent method
+    def pgm(self): #pgm := line pgm | EOF
+        if self.current_token.type == '#EOF':
             return 
-        elif self.current_token.type == CONST:
+        elif self.current_token.type == '#const':
             self.line_type()
             self.token_list.append('\n')
             self.pgm()
@@ -134,36 +132,42 @@ class Parser(object):
 
     def line_type(self):
         num = self.current_token.value
-        self.current_token = Token(LINE,num)
-        self.eat(LINE)
-        self.token_list.append(tag.get('#line'))
-        self.token_list.append(str(num))
-        self.stmt()
+        if num in num_range: #check if num is within num_range
+            
+            #change token from const to line_num type
+            self.current_token = Token('#line',num)
+            
+            self.eat('#line') #try to match current_token with '#line'
+            self.token_list.append(tag.get('#line'))
+            self.token_list.append(str(num))
+            self.stmt()
+        else: self.error() #num is out of num_range >> invalid
         return
 
     def stmt(self):
-        if self.current_token.type == ID:
+        if self.current_token.type == '#id':
             self.asgmnt()
-        elif self.current_token.type == IF:
+        elif self.current_token.type == '#if':
             self.if_type()
-        elif self.current_token.type == PRINT:
+        elif self.current_token.type == '#print':
             self.print()
-        elif self.current_token.type == GOTO:
+        elif self.current_token.type == '#goto':
             self.goto()
-        elif self.current_token.type == STOP:
+        elif self.current_token.type == '#stop':
             self.stop()
         else:
-            self.error()
+            self.error() #invalid syntax
         return
 
     def asgmnt(self):
         word = self.current_token.value
         if word in upper:
-            self.eat(ID)
+            self.eat('#id')
             self.token_list.append(tag.get('#id'))
             self.token_list.append(str(upper.index(word)+1))
+        else: self.error() #ID is out of range >> invalid
         op = self.current_token.type
-        self.eat(EQUAL)
+        self.eat('#op')
         self.token_list.append(tag.get('#op'))
         self.token_list.append('4')
         self.exp()
@@ -175,13 +179,13 @@ class Parser(object):
         return
 
     def exp2(self):
-        if self.current_token.type == PLUS:
-            self.eat(PLUS)
+        if self.current_token.type == '#op':
+            self.eat('#op')
             self.token_list.append(tag.get('#op'))
             self.token_list.append('1')
             self.term()
-        elif self.current_token.type == MINUS:
-            self.eat(MINUS)
+        elif self.current_token.type == '#op':
+            self.eat('#op')
             self.token_list.append(tag.get('#op'))
             self.token_list.append('2')
             self.term()
@@ -190,26 +194,28 @@ class Parser(object):
     def term(self):
         word = self.current_token.value
         if word in upper:
-            self.eat(ID)
+            self.eat('#id')
             self.token_list.append(tag.get('#id'))
             self.token_list.append(str(upper.index(word)+1))
         elif word in const_range:
-            self.eat(CONST)
+            self.eat('#const')
             self.token_list.append(tag.get('#const'))
             self.token_list.append(str(word))
+        else: self.error()
         return
 
     def if_type(self):
-        self.eat(IF)
+        self.eat('#if')
         self.token_list.append(tag.get('#if'))
         self.token_list.append('0')
         self.cond()
         num = self.current_token.value
-        if num in num_range:
-            self.current_token = Token(GOTO,num)
-            self.eat(GOTO)
+        if num in num_range: 
+            self.current_token = Token('#goto',num)
+            self.eat('#goto')
             self.token_list.append(tag.get('#goto'))
             self.token_list.append(str(num))
+        else: self.error() #num is out of num_range >> invalid
         return
 
     def cond(self):
@@ -218,63 +224,68 @@ class Parser(object):
         return
         
     def cond2(self):
-        if self.current_token.type == LESS:
-            self.eat(LESS)
+        if self.current_token.type == '#op':
+            self.eat('#op')
             self.token_list.append(tag.get('#op'))
             self.token_list.append('3')
             self.term()
-        elif self.current_token.type == EQUAL:
-            self.eat(EQUAL)
+        elif self.current_token.type == '#op':
+            self.eat('#op')
             self.token_list.append(tag.get('#op'))
             self.token_list.append('4')
             self.term()
         return
         
     def print(self):
-        self.eat(PRINT)
+        self.eat('#print')
         self.token_list.append(tag.get('#print'))
         self.token_list.append('0')
         word = self.current_token.value
-        self.eat(ID)
+        self.eat('#id')
         if word in upper:
             self.token_list.append(tag.get('#id'))
-            self.token_list.append(str(upper.index(word)+1))
+            self.token_list.append(str(upper.index(word)+1)) 
+        else: self.error()
         return
 
     def goto(self):
-        self.eat(GOTO)
+        self.eat('#goto')
         self.token_list.append(tag.get('#goto'))
         num = self.current_token.value
         if num in num_range:
-            self.current_token = Token(LINE,num)
-            self.eat(LINE)
+            self.current_token = Token('#line',num)
+            self.eat('#line')
             self.token_list.append(num)
+        else: self.error() #num is out of num_range >> invalid
         return
 
     def stop(self):
-        self.eat(STOP)
+        self.eat('#stop')
         self.token_list.append(tag.get('#stop'))
         self.token_list.append('0')
         return   
 
     def parse(self):
-        self.pgm()
-        if self.current_token.type != EOF:
+        self.pgm() #call the beginning of production
+        if self.current_token.type != '#EOF': 
             self.error()
         return self.token_list
     
+#get file name from user
 file = input().strip('\n')
 try: 
     text = open(file).read()
     print('Token sequence:')
-except Exception as e:
+except Exception as e: #No such file 
     print(e)
     
-token_list = []
-lexer = Lexer(text.strip('\n\t\r'))
+token_list = [] #list for storing tokens
+lexer = Lexer(text.strip('\n\t\r')) 
 parser = Parser(lexer,token_list)
 token_list = parser.parse()
-token_list.append('0')
+token_list.append('0') #indicating end of B_code
+
+#printing B_code
 print('B_code:')
 char = ""
 for token in token_list:
