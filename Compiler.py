@@ -271,14 +271,29 @@ class Parser(object):
             self.error()
         return self.token_list
     
-#get file name from user
-file = input("Enter file name: ").strip('\n')
-try: 
-    text = open(file).read()
-    print('Token sequence:')
-except Exception as e: #No such file 
-    print(e)
-    
+#get source program
+#select input mode
+print("Select input mode:\n0:select file\n1:type input")
+x = int(input("[0/1]: "))
+if x == 0: #get source program from file
+    file = input("Enter file name/path: ").strip('\n')
+    try: 
+        text = open(file).read()
+        print('Token sequence:')
+    except Exception as e: #No such file 
+        print(e)
+
+elif x == 1: #get source program from typing in command line
+    lines = []
+    while True:
+        line = input()
+        if line:
+            lines.append(line)
+        else:
+            break
+    text = '\n'.join(lines)
+else: print("invalid input mode")
+
 token_list = [] #list for storing tokens
 lexer = Lexer(text.strip('\n\t\r')) 
 parser = Parser(lexer,token_list)
